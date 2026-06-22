@@ -284,6 +284,15 @@ function Step-Run {
     # Brief wait for service to initialize IPC pipe (GUI retries internally if not ready)
     Start-Sleep -Seconds 2
 
+    # Check if service process is still alive
+    if ($svcProc.HasExited) {
+        $exitCode = $svcProc.ExitCode
+        Log "  ERROR: Service exited early (code $exitCode). Check logs:"
+        if (Test-Path "$env:TEMP\nova_svc_err.log") { Get-Content "$env:TEMP\nova_svc_err.log" | ForEach-Object { Log "    $_" } }
+        if (Test-Path (Join-Path $ROOT "temp" "log.txt")) { Get-Content (Join-Path $ROOT "temp" "log.txt") -Tail 10 | ForEach-Object { Log "    $_" } }
+        Fail "Service failed to start"
+    }
+
     # Launch GUI (hidden console) and wait for it to close
     Log "  Starting nova-cache-gui..."
     $gui = Start-Process -FilePath "$svcDir\nova-cache-gui.exe" -ArgumentList "--no-launch" -WindowStyle Hidden -PassThru
