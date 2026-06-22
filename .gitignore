@@ -24,6 +24,7 @@ Desktop.ini
 .dev_state.json
 temp/
 stop
+panic.txt
 
 # KDU tools — never commit drivers or loader binaries
 tools/kdu/*.sys
