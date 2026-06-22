@@ -176,9 +176,9 @@ function Step-Sign {
     $sys = "$ROOT\driver\novacache\Release\Novacache.sys"
     if (-not (Test-Path $sys)) { Fail "$sys not found - build driver first" }
 
-    # Check if already signed
-    & $signtool verify /pa $sys 2>$null
-    if ($LASTEXITCODE -eq 0 -and -not $Force) { Skip "already signed"; return }
+    # Check if already signed (Authenticode signature present and valid)
+    $sig = Get-AuthenticodeSignature $sys -EA 0
+    if ($sig.Status -eq "Valid" -and -not $Force) { Skip "already signed"; return }
 
     # Stop service and unload driver to release file lock
     sc stop Novacache 2>$null
