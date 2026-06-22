@@ -102,6 +102,13 @@ impl L2Pool {
         })
     }
 
+    pub fn empty() -> Self {
+        Self {
+            backends: Vec::new(),
+            total_slots: 0,
+        }
+    }
+
     pub fn allocate(&self) -> Option<L2Slot> {
         for (idx, backend) in self.backends.iter().enumerate() {
             if let Some(slot) = backend.tier.allocate() {

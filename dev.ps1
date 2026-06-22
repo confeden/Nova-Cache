@@ -285,11 +285,12 @@ function Step-Run {
     Start-Sleep -Seconds 2
 
     # Check if service process is still alive
-    if ($svcProc.HasExited) {
+    $svcStillRunning = Get-Process -Id $svcProc.Id -ErrorAction SilentlyContinue
+    if (-not $svcStillRunning) {
         $exitCode = $svcProc.ExitCode
-        Log "  ERROR: Service exited early (code $exitCode). Check logs:"
+        Log "  ERROR: Service exited early (code $exitCode). Check logs below:"
         if (Test-Path "$env:TEMP\nova_svc_err.log") { Get-Content "$env:TEMP\nova_svc_err.log" | ForEach-Object { Log "    $_" } }
-        if (Test-Path (Join-Path $ROOT "temp" "log.txt")) { Get-Content (Join-Path $ROOT "temp" "log.txt") -Tail 10 | ForEach-Object { Log "    $_" } }
+        $logPath = Join-Path $ROOT "temp\log.txt"; if (Test-Path $logPath) { Get-Content $logPath -Tail 10 | ForEach-Object { Log "    $_" } }
         Fail "Service failed to start"
     }
 

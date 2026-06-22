@@ -188,7 +188,7 @@ impl ServiceOrchestrator {
         info!("Configuration loaded successfully.");
 
         // Resolve relative paths against base_dir
-        if config.cache.l2.path.is_relative() {
+        if !config.cache.l2.path.as_os_str().is_empty() && config.cache.l2.path.is_relative() {
             config.cache.l2.path = base_dir.join(&config.cache.l2.path);
         }
         if config.kdu.kdu_path.is_relative() {
@@ -219,12 +219,18 @@ impl ServiceOrchestrator {
             config.cache.block_size_kb as usize * 1024,
         ));
 
-        // Build L2 backends list: primary path + any additional backends
+        // Build L2 backends list: skip if L2 disabled or path empty
         let block_size = config.cache.block_size_kb as usize * 1024;
-        let mut l2_paths = vec![config.cache.l2.path.clone()];
-        for extra in &config.cache.l2.backends {
-            if !l2_paths.contains(extra) {
-                l2_paths.push(extra.clone());
+        let mut l2_paths: Vec<PathBuf> = Vec::new();
+        if config.cache.l2.enable && config.cache.l2.size_gb > 0 {
+            let primary = config.cache.l2.path.clone();
+            if !primary.as_os_str().is_empty() {
+                l2_paths.push(primary);
+                for extra in &config.cache.l2.backends {
+                    if !l2_paths.contains(extra) {
+                        l2_paths.push(extra.clone());
+                    }
+                }
             }
         }
         let num_backends = l2_paths.len() as u64;
@@ -234,11 +240,15 @@ impl ServiceOrchestrator {
             (config.cache.l2.size_gb as u64) * 1024 * 1024 * 1024
         };
 
-        let l2_pool = Arc::new(RwLock::new(L2Pool::new(
-            &l2_paths,
-            size_per_backend,
-            block_size,
-        )?));
+        let l2_pool = if l2_paths.is_empty() {
+            Arc::new(RwLock::new(L2Pool::empty()))
+        } else {
+            Arc::new(RwLock::new(L2Pool::new(
+                &l2_paths,
+                size_per_backend,
+                block_size,
+            )?))
+        };
 
         {
             let pool_guard = l2_pool.read();
