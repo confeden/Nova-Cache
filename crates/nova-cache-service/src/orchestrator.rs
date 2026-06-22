@@ -293,8 +293,14 @@ impl ServiceOrchestrator {
             ticks.wrapping_mul(6364136223846793005).wrapping_add(pid)
         };
 
+        // Use primary L2 path for journal/index, or temp dir if L2 disabled
+        let l2_primary = l2_paths
+            .first()
+            .cloned()
+            .unwrap_or_else(|| std::env::temp_dir().join("NovaCache").join("l2_disabled"));
+
         // Phase 3.1a: Open journal first — replays uncommitted entries to L2
-        let journal_path = l2_paths[0].with_file_name("nova_journal.bin");
+        let journal_path = l2_primary.with_file_name("nova_journal.bin");
         let journal = Arc::new(crate::journal::Journal::open(
             journal_path,
             l2_pool.clone(),
@@ -302,7 +308,7 @@ impl ServiceOrchestrator {
         )?);
 
         // Phase 3.1b: Restore L1 cache index from disk
-        let index_path = l2_paths[0].with_file_name("cache_index.bin");
+        let index_path = l2_primary.with_file_name("cache_index.bin");
         let mut index_loaded = false;
         match persistence::load_cache_index(&index_path) {
             Ok(Some((_block_size, saved_gen, entries))) => {
@@ -379,7 +385,7 @@ impl ServiceOrchestrator {
                         committed.len()
                     );
 
-                    let l2_file_size = std::fs::metadata(&l2_paths[0])
+                    let l2_file_size = std::fs::metadata(&l2_primary)
                         .map(|m| m.len())
                         .unwrap_or(0);
 
