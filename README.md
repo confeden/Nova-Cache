@@ -29,7 +29,26 @@ The driver intercepts every `ReadFile`/`WriteFile` call at the kernel level, che
 
 ## Quick Start
 
-> **Windows 10+ x64** only. Requires Administrator privileges.
+> **Windows 10+ x64** only. Requires **Administrator privileges** and **Windows Test Mode**.
+
+### ⚠️ Windows Test Mode Required
+
+The kernel driver uses a self-signed test certificate (created automatically by `dev.bat`).  
+Windows must be in **Test Mode** to load an unsigned test-signed driver:
+
+```cmd
+bcdedit /set testsigning on
+```
+
+Then **reboot** before running `dev.bat`.
+
+To revert later:
+
+```cmd
+bcdedit /set testsigning off
+```
+
+### Build & Run
 
 Open **Command Prompt as Administrator** and run:
 
