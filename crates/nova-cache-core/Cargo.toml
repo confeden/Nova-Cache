@@ -1,6 +1,6 @@
 [package]
 name = "nova-cache-core"
-version = "0.93.0"
+version = "0.94.0"
 edition = "2021"
 description = "Core caching engine for Nova Cache — ARC algorithm, block management, memory pool, and SSD tier"
 license = "MIT"

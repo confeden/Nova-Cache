@@ -1348,7 +1348,7 @@ impl eframe::App for NovaCacheApp {
 
                 ui.add_space(8.0);
                 ui.label(
-                    egui::RichText::new("NOVA CACHE MONITOR")
+                    egui::RichText::new("NOVA CACHE v0.94")
                         .font(egui::FontId::proportional(18.0))
                         .strong()
                         .color(egui::Color32::from_rgb(90, 130, 170)),
@@ -1965,7 +1965,7 @@ fn main() -> Result<()> {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Nova Cache Dashboard")
+            .with_title("Nova Cache Dashboard v0.94")
             .with_inner_size([win_w, win_h])
             .with_min_inner_size([750.0, 500.0])
             .with_resizable(true)
@@ -1975,7 +1975,7 @@ fn main() -> Result<()> {
 
     let rect = (pos_x, pos_y, win_w, win_h);
     eframe::run_native(
-        "Nova Cache Dashboard",
+        "Nova Cache Dashboard v0.94",
         native_options,
         Box::new(move |cc| Ok(Box::new(NovaCacheApp::new(cc, auto_launch, rect)))),
     )

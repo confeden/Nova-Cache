@@ -1,6 +1,6 @@
 [package]
 name = "nova-cache-gui"
-version = "0.93.0"
+version = "0.94.0"
 edition = "2021"
 description = "Nova Cache GUI — egui dashboard for cache stats, heatmaps, and configuration"
 license = "MIT"

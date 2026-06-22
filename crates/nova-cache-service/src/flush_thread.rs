@@ -5,6 +5,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
+#[cfg(windows)]
+use windows::Win32::System::Memory::SetProcessWorkingSetSizeEx;
+#[cfg(windows)]
+use windows::Win32::System::Threading::GetCurrentProcess;
+
 use crate::journal::Journal;
 
 #[derive(Debug, Clone)]
@@ -123,6 +128,10 @@ impl FlushThread {
                     // Periodically flush memory-mapped L2 cache to disk
                     if last_mmap_flush.elapsed() >= std::time::Duration::from_millis(mmap_flush_ms) {
                         l2_pool.read().flush();
+                        #[cfg(windows)]
+                        unsafe {
+                            let _ = SetProcessWorkingSetSizeEx(GetCurrentProcess(), usize::MAX, usize::MAX, Default::default());
+                        }
                         last_mmap_flush = std::time::Instant::now();
                     }
 
