@@ -1,4 +1,4 @@
-# Nova Cache v0.9
+# Nova Cache
 
 > A kernel-level disk caching system for Windows that accelerates HDD read performance by caching hot data in RAM and SSD tiers.
 
