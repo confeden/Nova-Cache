@@ -132,7 +132,7 @@ function Step-VsWdk {
         Log "  Downloading VS 2026 Build Tools bootstrapper (~2 MB)..."
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/18/release/vs_BuildTools.exe", $bootstrapper)
+            (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/18/stable/vs_BuildTools.exe", $bootstrapper)
         } catch {
             Fail "Failed to download VS Build Tools. Check your internet connection."
         }
