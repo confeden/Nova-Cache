@@ -297,7 +297,11 @@ impl ServiceOrchestrator {
         let l2_primary = l2_paths
             .first()
             .cloned()
-            .unwrap_or_else(|| std::env::temp_dir().join("NovaCache").join("l2_disabled"));
+            .unwrap_or_else(|| {
+                let p = base_dir.join("temp").join("l2_disabled");
+                let _ = std::fs::create_dir_all(&p);
+                p
+            });
 
         // Phase 3.1a: Open journal first — replays uncommitted entries to L2
         let journal_path = l2_primary.with_file_name("nova_journal.bin");
