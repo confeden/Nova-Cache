@@ -180,29 +180,41 @@ function Step-Sign {
     & $signtool verify /pa $sys 2>$null
     if ($LASTEXITCODE -eq 0 -and -not $Force) { Skip "already signed"; return }
 
-    # Ensure test cert exists
+    # Create test cert (PowerShell only - no dialog, no signtool create)
     $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "NovaCacheTest" } | Select-Object -First 1
     if (-not $cert) {
-        Log "  Creating self-signed test certificate 'NovaCacheTest'..."
-        & $signtool create /n "NovaCacheTest" /r CurrentUser /s My "$env:TEMP\NovaCacheTest.cer" 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            # fallback: use New-SelfSignedCertificate
-            $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=NovaCacheTest" -KeyUsage DigitalSignature -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3") -NotAfter (Get-Date).AddYears(10) 2>$null
-            if (-not $cert) { Fail "Failed to create test certificate. Run: New-SelfSignedCertificate ..." }
-            Export-Certificate -Cert $cert -FilePath "$env:TEMP\NovaCacheTest.cer" -Type CERT 2>$null
-        }
-        $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "NovaCacheTest" } | Select-Object -First 1
-        if (-not $cert) { Fail "Test certificate creation failed" }
+        Log "  Creating self-signed test certificate..."
+        $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=NovaCacheTest" `
+            -KeyUsage DigitalSignature `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3") `
+            -NotAfter (Get-Date).AddYears(10) `
+            -Confirm:$false
+        if (-not $cert) { Fail "Failed to create test certificate" }
+        Ok "Certificate created"
     }
-    # Add to Trusted Root for the test machine
-    $dstStore = Get-Item Cert:\CurrentUser\Root
-    $existing = $dstStore | Where-Object { $_.Subject -match "NovaCacheTest" }
+
+    # Add to Trusted Root (silent - no dialog)
+    $rootStore = [System.Security.Cryptography.X509Certificates.X509Store]::new("Root", "CurrentUser")
+    $rootStore.Open("ReadWrite")
+    $existing = $rootStore.Certificates | Where-Object { $_.Subject -match "NovaCacheTest" }
     if (-not $existing) {
-        $srcStore = Get-Item Cert:\CurrentUser\My
-        Move-Item ($cert.PSPath) ($dstStore.PSPath) 2>$null
-        $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "NovaCacheTest" } | Select-Object -First 1
-        if (-not $cert) { $cert = Get-ChildItem Cert:\CurrentUser\Root -CodeSigningCert | Where-Object { $_.Subject -match "NovaCacheTest" } | Select-Object -First 1 }
+        $rootStore.Add($cert)
+        Log "  Added certificate to Trusted Root"
     }
+    $rootStore.Close()
+
+    # Add to Trusted Publishers (for driver signing)
+    $pubStore = [System.Security.Cryptography.X509Certificates.X509Store]::new("TrustedPublisher", "CurrentUser")
+    $pubStore.Open("ReadWrite")
+    $existing = $pubStore.Certificates | Where-Object { $_.Subject -match "NovaCacheTest" }
+    if (-not $existing) {
+        $pubStore.Add($cert)
+        Log "  Added certificate to Trusted Publishers"
+    }
+    $pubStore.Close()
 
     Log "  Signing Novacache.sys..."
     & $signtool sign /fd SHA256 /a /n "NovaCacheTest" $sys 2>&1
