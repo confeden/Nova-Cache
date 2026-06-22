@@ -22,9 +22,28 @@ function NewerThan($target, $sources) {
 
 function Find-MSBuild {
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (-not (Test-Path $vswhere)) { return $null }
-    $path = & $vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\amd64\MSBuild.exe" 2>$null
-    if ($path) { $path | Select-Object -First 1 } else { $null }
+    if (Test-Path $vswhere) {
+        $path = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\*.exe" 2>$null
+        if ($path) {
+            $exe = $path | Where-Object { $_ -like "*MSBuild.exe" } | Select-Object -First 1
+            if ($exe) { return $exe }
+        }
+    }
+    # Fallback: common VS install locations
+    $fallbacks = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\*\*\MSBuild\*\Bin\amd64\MSBuild.exe"
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\*\MSBuild\*\Bin\amd64\MSBuild.exe"
+        "${env:ProgramFiles}\Microsoft Visual Studio\*\*\MSBuild\*\Bin\amd64\MSBuild.exe"
+        "${env:ProgramFiles}\Microsoft Visual Studio\*\MSBuild\*\Bin\amd64\MSBuild.exe"
+    )
+    foreach ($pattern in $fallbacks) {
+        $found = Get-ChildItem $pattern -ErrorAction 0 | Sort-Object FullName -Descending | Select-Object -First 1
+        if ($found) { return $found.FullName }
+    }
+    # Fallback: check PATH
+    $fromPath = Get-Command MSBuild.exe -EA 0
+    if ($fromPath) { return $fromPath.Source }
+    $null
 }
 
 function Find-Signtool {
