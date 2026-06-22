@@ -76,10 +76,6 @@ scripts/                    — Build and management scripts
    ```
 3. The service auto-loads: `nova-cache-service.exe`
 
-## License
-
-GNU General Public License v3.0 — see [LICENSE](LICENSE).
-
 ## Attribution
 
 Built with:
