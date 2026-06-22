@@ -106,26 +106,26 @@ function Step-VsWdk {
     if ($msbuild) {
         Ok "MSBuild: $msbuild"
     } else {
-        Log "  MSBuild not found. Installing VS 2022 Build Tools..."
-        $bootstrapper = "$env:TEMP\vs_BuildTools.exe"
+            Log "  MSBuild not found. Installing VS 2026 Build Tools..."
+            $bootstrapper = "$env:TEMP\vs_BuildTools.exe"
 
-        # Download bootstrapper if not cached
-        if (-not (Test-Path $bootstrapper)) {
-            Log "  Downloading VS Build Tools bootstrapper (~2 MB)..."
-            try {
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/17/release/vs_BuildTools.exe", $bootstrapper)
-            } catch {
-                Fail "Failed to download VS Build Tools. Check your internet connection."
+            # Download bootstrapper if not cached
+            if (-not (Test-Path $bootstrapper)) {
+                Log "  Downloading VS Build Tools bootstrapper (~2 MB)..."
+                try {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/18/release/vs_BuildTools.exe", $bootstrapper)
+                } catch {
+                    Fail "Failed to download VS Build Tools. Check your internet connection."
+                }
             }
-        }
 
-        Log "  Installing VS Build Tools (C++ workload, this may take 5-15 min)..."
-        Log "  Progress: running installer silently..."
-        $proc = Start-Process -FilePath $bootstrapper -Wait -PassThru -ArgumentList "--quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
-        if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
-            Fail "VS Build Tools installation failed (exit code $($proc.ExitCode)). Try manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022"
-        }
+            Log "  Installing VS 2026 Build Tools (C++ workload, this may take 5-15 min)..."
+            Log "  Progress: running installer silently..."
+            $proc = Start-Process -FilePath $bootstrapper -Wait -PassThru -ArgumentList "--quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
+            if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+                Fail "VS Build Tools installation failed (exit code $($proc.ExitCode)). Try manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026"
+            }
         Log "  Installer finished (exit code $($proc.ExitCode))."
 
         # Refresh PATH and re-detect
