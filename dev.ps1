@@ -281,33 +281,8 @@ function Step-Run {
     }
     $svcProc = Start-Process -FilePath "$svcDir\nova-cache-service.exe" -ArgumentList "--console" -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\nova_svc.log" -RedirectStandardError "$env:TEMP\nova_svc_err.log"
 
-    # Wait for driver to load (max 10 seconds)
-    Log "  Waiting for minifilter to register..."
-    $timeout = 10
-    while ($timeout -gt 0) {
-        $loaded = fltmc filters 2>$null | Select-String "Novacache"
-        if ($loaded) { break }
-        Start-Sleep -Seconds 1
-        $timeout--
-    }
-    if ($timeout -eq 0) { Log "  WARNING: minifilter not detected (service may still be starting)" }
-    else { Ok "Novacache minifilter registered" }
-
-    # Wait for IPC pipe to be ready (try connecting to named pipe)
-    Log "  Waiting for IPC pipe..."
-    $timeout = 15
-    $pipeFound = $false
-    while ($timeout -gt 0) {
-        try {
-            $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "NovaCacheIpc", [System.IO.Pipes.PipeDirection]::InOut)
-            $pipe.Connect(1000)
-            $pipe.Dispose()
-            $pipeFound = $true
-            break
-        } catch { Start-Sleep -Seconds 1; $timeout-- }
-    }
-    if (-not $pipeFound) { Log "  WARNING: IPC pipe not found. Check $env:TEMP\nova_svc_err.log" }
-    else { Ok "IPC pipe ready" }
+    # Brief wait for service to initialize IPC pipe (GUI retries internally if not ready)
+    Start-Sleep -Seconds 2
 
     # Launch GUI (hidden console) and wait for it to close
     Log "  Starting nova-cache-gui..."
