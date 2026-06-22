@@ -294,17 +294,13 @@ function Step-Run {
         Fail "Service failed to start"
     }
 
-    # Launch GUI (hidden console) and wait for it to close
+    # Launch GUI (hidden console) - wait for it to keep the window open
     Log "  Starting nova-cache-gui..."
-    $gui = Start-Process -FilePath "$svcDir\nova-cache-gui.exe" -ArgumentList "--no-launch" -WindowStyle Hidden -PassThru
-    $gui.WaitForExit()
-
-    # GUI closed - stop service
-    Log "  GUI closed. Stopping service..."
-    sc stop Novacache 2>$null
-    Start-Sleep -Seconds 2
-    taskkill /F /IM nova-cache-service.exe 2>$null
-    Ok "Nova Cache stopped."
+    $guiProc = Start-Process -FilePath "$svcDir\nova-cache-gui.exe" -ArgumentList "--no-launch" -WindowStyle Hidden -PassThru
+    Log "  Nova Cache GUI launched. Waiting for GUI to close..."
+    $guiProc.WaitForExit()
+    Log "  GUI closed, shutting down service..."
+    Start-Sleep -Seconds 1
 }
 
 # --- Entry ---------------------------------------------------------
@@ -327,7 +323,7 @@ function Main {
     ""
     Log "Done. Nova Cache is active."
     ""
-    Log "To stop: taskkill /F /IM nova-cache-service.exe"
+    Log "To stop, close the GUI window (sends shutdown via IPC)."
 }
 
 Main

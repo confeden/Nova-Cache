@@ -283,15 +283,16 @@ impl ServiceOrchestrator {
             block_size_bytes,
         )?);
 
-        // Generate random cache generation — changes every service start, invalidates stale L2 entries
+        // Deterministic cache generation from L2 path — stable across restarts,
+        // changes only when L2 device changes (cache invalidated)
         let cache_generation = {
-            let ticks = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos() as u64;
-            let pid = std::process::id() as u64;
-            ticks.wrapping_mul(6364136223846793005).wrapping_add(pid)
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            config.cache.l2.path.hash(&mut hasher);
+            let hash = hasher.finish();
+            if hash == 0 { 1 } else { hash }
         };
+        info!("Cache generation: 0x{:016X} (derived from L2 path)", cache_generation);
 
         // Use primary L2 path for journal/index, or temp dir if L2 disabled
         let l2_primary = l2_paths
@@ -1314,99 +1315,87 @@ impl ServiceOrchestrator {
                                 }
                             }
 
-                            // We skip TinyLFU admission check for L1 because we want all blocks
-                            // to at least hit L1, and then ARC handles L1 eviction.
-                            // Wait, TinyLFU was previously protecting L1 from sequential scans.
-                            // We will keep TinyLFU for L1, but L2 is 100% written.
-                            if !tinylfu_clone.should_admit(block_id) {
-                                tinylfu_clone
-                                    .rejected
+                            // Skip TinyLFU admission check for L1 — all blocks enter L1,
+                            // ARC handles eviction naturally.
+                            let block_info = if let Some(slot) = pool.allocate() {
+                                let _ = pool.write(slot, &data);
+                                stats
+                                    .l1_block_count
                                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                CachedBlockData {
+                                    size: data.len(),
+                                    slot: SlotLocation::Pool(slot),
+                                    l2_persistent,
+                                }
+                            } else if l2_persistent.is_some() {
+                                CachedBlockData {
+                                    size: data.len(),
+                                    slot: SlotLocation::Ssd(
+                                        l2_persistent.as_ref().unwrap().clone(),
+                                    ),
+                                    l2_persistent,
+                                }
                             } else {
-                                tinylfu_clone
-                                    .admitted
-                                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                warn!("L1 full and L2 full/unhealthy, dropping block for offset={}", desc.offset);
+                                continue;
+                            };
 
-                                let block_info = if let Some(slot) = pool.allocate() {
-                                    let _ = pool.write(slot, &data);
-                                    stats
-                                        .l1_block_count
-                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                                    CachedBlockData {
-                                        size: data.len(),
-                                        slot: SlotLocation::Pool(slot),
-                                        l2_persistent,
-                                    }
-                                } else if l2_persistent.is_some() {
-                                    CachedBlockData {
-                                        size: data.len(),
-                                        slot: SlotLocation::Ssd(
-                                            l2_persistent.as_ref().unwrap().clone(),
-                                        ),
-                                        l2_persistent,
-                                    }
-                                } else {
-                                    warn!("L1 full and L2 full/unhealthy, dropping block for offset={}", desc.offset);
-                                    continue;
-                                };
+                            // Use T2 (hot-file priority) if this block is tracked as hot by ETW
+                            // ETW uses simple (volume_id << 32) | offset keys
+                            let hot_key = ((desc.volume_id as u64) << 32) | desc.offset;
+                            let is_hot = hot_blocks_consumer.lock().contains(&hot_key);
+                            let evicted = if is_hot {
+                                arc_cache.insert_t2(block_id, block_info)
+                            } else {
+                                arc_cache.insert(block_id, block_info)
+                            };
 
-                                // Use T2 (hot-file priority) if this block is tracked as hot by ETW
-                                // ETW uses simple (volume_id << 32) | offset keys
-                                let hot_key = ((desc.volume_id as u64) << 32) | desc.offset;
-                                let is_hot = hot_blocks_consumer.lock().contains(&hot_key);
-                                let evicted = if is_hot {
-                                    arc_cache.insert_t2(block_id, block_info)
-                                } else {
-                                    arc_cache.insert(block_id, block_info)
-                                };
-
-                                if let Some((_evicted_id, evicted_data)) = evicted {
-                                    match evicted_data.slot {
-                                        SlotLocation::Pool(slot) => {
-                                            pool.free(slot);
-                                            stats
-                                                .l1_block_count
-                                                .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-                                            if let Some(meta) = state_clone.block_metadata_map.get(&_evicted_id) {
-                                                state_clone.shared_ring.read().invalidate_l1_cache(
-                                                    meta.volume_id,
-                                                    meta.offset,
-                                                    meta.file_object as usize,
-                                                );
-                                            }
+                            if let Some((_evicted_id, evicted_data)) = evicted {
+                                match evicted_data.slot {
+                                    SlotLocation::Pool(slot) => {
+                                        pool.free(slot);
+                                        stats
+                                            .l1_block_count
+                                            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                                        if let Some(meta) = state_clone.block_metadata_map.get(&_evicted_id) {
+                                            state_clone.shared_ring.read().invalidate_l1_cache(
+                                                meta.volume_id,
+                                                meta.offset,
+                                                meta.file_object as usize,
+                                            );
                                         }
-                                        SlotLocation::Ssd(ref slot) => {
-                                            l2_pool.read().free(slot);
-                                            stats
-                                                .l2_block_count
-                                                .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-                                            
-                                            if let Some(meta) = state_clone.block_metadata_map.get(&_evicted_id) {
-                                                state_clone.shared_ring.read().insert_l2_cache(
-                                                    meta.volume_id,
-                                                    meta.offset,
-                                                    0,
-                                                    meta.file_object as usize,
-                                                    slot.slot,
-                                                    false,
-                                                );
-                                            }
+                                    }
+                                    SlotLocation::Ssd(ref slot) => {
+                                        l2_pool.read().free(slot);
+                                        stats
+                                            .l2_block_count
+                                            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                                        
+                                        if let Some(meta) = state_clone.block_metadata_map.get(&_evicted_id) {
+                                            state_clone.shared_ring.read().insert_l2_cache(
+                                                meta.volume_id,
+                                                meta.offset,
+                                                0,
+                                                meta.file_object as usize,
+                                                slot.slot,
+                                                false,
+                                            );
+                                        }
 
-                                            if let Some(ref l2_slot) = evicted_data.l2_persistent {
-                                                if l2_slot.backend != slot.backend
-                                                    || l2_slot.slot != slot.slot
-                                                {
-                                                    l2_pool.read().free(l2_slot);
-                                                    if let Some(meta) = state_clone.block_metadata_map.get(&_evicted_id) {
-                                                        state_clone.shared_ring.read().insert_l2_cache(
-                                                            meta.volume_id,
-                                                            meta.offset,
-                                                            0,
-                                                            meta.file_object as usize,
-                                                            l2_slot.slot,
-                                                            false,
-                                                        );
-                                                    }
+                                        if let Some(ref l2_slot) = evicted_data.l2_persistent {
+                                            if l2_slot.backend != slot.backend
+                                                || l2_slot.slot != slot.slot
+                                            {
+                                                l2_pool.read().free(l2_slot);
+                                                if let Some(meta) = state_clone.block_metadata_map.get(&_evicted_id) {
+                                                    state_clone.shared_ring.read().insert_l2_cache(
+                                                        meta.volume_id,
+                                                        meta.offset,
+                                                        0,
+                                                        meta.file_object as usize,
+                                                        l2_slot.slot,
+                                                        false,
+                                                    );
                                                 }
                                             }
                                         }

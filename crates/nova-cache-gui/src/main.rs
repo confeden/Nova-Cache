@@ -1967,7 +1967,7 @@ fn main() -> Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_title("Nova Cache Dashboard")
             .with_inner_size([win_w, win_h])
-            .with_min_inner_size([900.0, 500.0])
+            .with_min_inner_size([750.0, 500.0])
             .with_resizable(true)
             .with_position([pos_x, pos_y]),
         ..Default::default()
