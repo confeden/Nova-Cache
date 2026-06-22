@@ -17,6 +17,7 @@ use windows::Win32::System::Pipes::{
 };
 
 use crate::orchestrator::ServiceStateShared;
+use nova_cache_core::l2_pool::L2Pool;
 use nova_cache_core::pool::MemoryPool;
 
 const PIPE_NAME: &str = r"\\.\pipe\NovaCacheIpc";
@@ -358,9 +359,36 @@ impl IpcServer {
 
                 if l2_changed {
                     let l2_gb = state.config.read().cache.l2.size_gb;
-                    info!("L2 size changed. Restart service to apply.");
+                    let paths: Vec<std::path::PathBuf> = {
+                        let conf = state.config.read();
+                        let mut p = Vec::new();
+                        if !conf.cache.l2.path.as_os_str().is_empty() {
+                            p.push(conf.cache.l2.path.clone());
+                        }
+                        p.extend(conf.cache.l2.backends.iter().cloned());
+                        p
+                    };
+                    let block_size = state.config.read().cache.block_size_kb as usize * 1024;
+
+                    if !paths.is_empty() && l2_gb > 0 {
+                        let size_per_backend =
+                            (l2_gb as u64 * 1024 * 1024 * 1024) / paths.len().max(1) as u64;
+                        match L2Pool::new(&paths, size_per_backend, block_size) {
+                            Ok(new_pool) => {
+                                *state.l2_pool.write() = new_pool;
+                                info!("L2 pool recreated: {} backends, {} GB", paths.len(), l2_gb);
+                            }
+                            Err(e) => {
+                                warn!("Failed to recreate L2 pool after size change: {:?}", e);
+                            }
+                        }
+                    } else {
+                        *state.l2_pool.write() = L2Pool::empty();
+                    }
+
+                    info!("L2 size set to {} GB with {} backends", l2_gb, paths.len());
                     messages.push(format!(
-                        "L2 size set to {} GB. Restart service to apply.",
+                        "L2 size set to {} GB.",
                         l2_gb
                     ));
                 }
@@ -394,6 +422,7 @@ impl IpcServer {
             IpcRequest::SetL2Backends { paths } => {
                 let new_paths: Vec<std::path::PathBuf> =
                     paths.iter().map(|p| std::path::PathBuf::from(p)).collect();
+                let mut backends_changed = false;
                 {
                     let mut conf = state.config.write();
                     if let Some(first) = new_paths.first() {
@@ -414,11 +443,39 @@ impl IpcServer {
                             error!("Failed to save config: {:?}", e);
                         } else {
                             info!("Config saved to {}", config_path.display());
+                            backends_changed = true;
                         }
                     }
                 }
+
+                // Recreate L2 pool if config has valid L2 settings
+                if backends_changed {
+                    let conf = state.config.read();
+                    let l2_enable = conf.cache.l2.enable;
+                    let l2_size = conf.cache.l2.size_gb;
+                    let block_size = conf.cache.block_size_kb as usize * 1024;
+                    drop(conf);
+
+                    if l2_enable && l2_size > 0 && !new_paths.is_empty() {
+                        let size_per_backend =
+                            (l2_size as u64 * 1024 * 1024 * 1024) / new_paths.len().max(1) as u64;
+                        match L2Pool::new(&new_paths, size_per_backend, block_size) {
+                            Ok(new_pool) => {
+                                *state.l2_pool.write() = new_pool;
+                                info!("L2 pool recreated with {} backends", new_paths.len());
+                            }
+                            Err(e) => {
+                                warn!("Failed to recreate L2 pool: {:?}", e);
+                            }
+                        }
+                    } else if new_paths.is_empty() || !l2_enable || l2_size == 0 {
+                        *state.l2_pool.write() = L2Pool::empty();
+                        info!("L2 pool cleared (disabled or no backends)");
+                    }
+                }
+
                 IpcResponse::ok(json!({
-                    "message": format!("{} L2 backends configured. Click Apply to activate.", new_paths.len()),
+                    "message": format!("{} L2 backends configured.", new_paths.len()),
                 }))
             }
             IpcRequest::GetL2Backends => {

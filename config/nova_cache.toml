@@ -15,7 +15,7 @@ max_dirty_blocks = 4096
 [cache.l2]
 enable = false
 path = 'I:\l2_cache.dat'
-size_gb = 0
+size_gb = 111
 backends = []
 cache_sequential = true
 
