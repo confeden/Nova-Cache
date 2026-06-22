@@ -1,12 +1,12 @@
-param([switch]$Force)
+﻿param([switch]$Force)
 $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
 $STATE_FILE = Join-Path $ROOT ".dev_state.json"
 
-# ─── State ────────────────────────────────────────────────────────────
+# â”€â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Get-State($name) { $s = (Get-Content $STATE_FILE -Raw -EA 0 | ConvertFrom-Json -EA 0); if ($s) { $s.$name } else { $false } }
 function Set-State($name, $val) { $s = @{}; if (Test-Path $STATE_FILE) { $s = Get-Content $STATE_FILE -Raw | ConvertFrom-Json -EA 0; if (-not $s) { $s = @{} } }; $s.$name = $val; $s | ConvertTo-Json | Set-Content $STATE_FILE }
 
-# ─── Helpers ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Log($msg) { Write-Host ">>> $msg" -ForegroundColor Cyan }
 function Ok($msg) { Write-Host "  OK  $msg" -ForegroundColor Green }
 function Skip($msg) { Write-Host "  --  $msg (skipped)" -ForegroundColor Yellow }
@@ -39,7 +39,7 @@ function Find-Signtool {
     $null
 }
 
-# ─── Steps ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Steps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function Step-Rust {
     Log "Step 1/6: Rust toolchain"
@@ -140,7 +140,7 @@ function Step-Sign {
     if (-not $signtool) { Log "  WARNING: signtool not available, skipping sign"; return }
 
     $sys = "$ROOT\driver\novacache\Release\Novacache.sys"
-    if (-not (Test-Path $sys)) { Fail "$sys not found — build driver first" }
+    if (-not (Test-Path $sys)) { Fail "$sys not found - build driver first" }
 
     # Check if already signed
     & $signtool verify /pa $sys 2>$null
@@ -214,11 +214,11 @@ function Step-Run {
     Ok "Nova Cache is running. GUI should appear shortly."
 }
 
-# ─── Entry ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Main {
     if (-not (Check-Admin)) { Fail "Must run as Administrator" }
 
-    Log "Nova Cache — Automated Build & Setup"
+    Log "Nova Cache - Automated Build & Setup"
     Log "Root: $ROOT"
     ""
 
