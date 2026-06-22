@@ -20,6 +20,11 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
+# Build state and temp files
+.dev_state.json
+temp/
+stop
+
 # KDU tools — never commit drivers or loader binaries
 tools/kdu/*.sys
 tools/kdu/*.exe

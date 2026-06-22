@@ -122,10 +122,6 @@ config/                     — Configuration files
 scripts/                    — Build and management scripts
 ```
 
-## License
-
-GNU General Public License v3.0 — see [LICENSE](LICENSE).
-
 ## Attribution
 
 Built with:

@@ -268,6 +268,7 @@ function Step-Run {
 
     # Clean up old instances
     sc stop Novacache 2>$null
+    Start-Sleep -Seconds 2
     fltmc unload Novacache 2>$null
     taskkill /F /IM nova-cache-gui.exe 2>$null
     taskkill /F /IM nova-cache-service.exe 2>$null
@@ -278,22 +279,31 @@ function Step-Run {
     if (-not (Test-Path "$svcDir\nova-cache-service.exe")) {
         $svcDir = "$ROOT\target\debug"
     }
-    $ps = Start-Process -FilePath "$svcDir\nova-cache-service.exe" -ArgumentList "--console" -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\nova_svc.log" -RedirectStandardError "$env:TEMP\nova_svc_err.log"
-    Start-Sleep -Seconds 2
+    $svcProc = Start-Process -FilePath "$svcDir\nova-cache-service.exe" -ArgumentList "--console" -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\nova_svc.log" -RedirectStandardError "$env:TEMP\nova_svc_err.log"
 
-    # Wait for driver to load
+    # Wait for driver to load (max 10 seconds)
     Log "  Waiting for minifilter to register..."
-    $timeout = 30
+    $timeout = 10
     while ($timeout -gt 0) {
         $loaded = fltmc filters 2>$null | Select-String "Novacache"
         if ($loaded) { break }
         Start-Sleep -Seconds 1
         $timeout--
     }
-    if ($timeout -eq 0) { Log "  WARNING: minifilter not detected. Check $env:TEMP\nova_svc_err.log" }
+    if ($timeout -eq 0) { Log "  WARNING: minifilter not detected (service may still be starting)" }
     else { Ok "Novacache minifilter registered" }
 
-    Ok "Nova Cache service is running."
+    # Launch GUI and wait for it to close
+    Log "  Starting nova-cache-gui..."
+    $gui = Start-Process -FilePath "$svcDir\nova-cache-gui.exe" -ArgumentList "--no-launch" -PassThru
+    $gui.WaitForExit()
+
+    # GUI closed - stop service
+    Log "  GUI closed. Stopping service..."
+    sc stop Novacache 2>$null
+    Start-Sleep -Seconds 2
+    taskkill /F /IM nova-cache-service.exe 2>$null
+    Ok "Nova Cache stopped."
 }
 
 # --- Entry ---------------------------------------------------------
