@@ -105,7 +105,7 @@ function Step-VsWdk {
     $msbuild = Find-MSBuild
     $needVsInstall = $true
     if ($msbuild) {
-        $ver = [Version]((& $msbuild /version 2>$null) -replace '^.*(\d+\.\d+\.\d+).*$','$1' 2>$null)
+        $verLine = (& $msbuild /version 2>$null) | Select-String '\d+\.\d+\.\d+' | Select-Object -First 1; $ver = if ($verLine) { [Version]($verLine.Matches[0].Value) } else { $null }
         if ($ver -and $ver.Major -ge 18) {
             Ok "MSBuild: $msbuild (VS 2026, v$ver)"
             $needVsInstall = $false
