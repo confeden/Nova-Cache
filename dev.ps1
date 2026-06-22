@@ -36,15 +36,25 @@ function NewerThan($target, $sources) {
 }
 
 function Find-MSBuild {
+    # Prefer VS 2026+ (version >= 18) over older versions
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     if (Test-Path $vswhere) {
+        # First try to find VS 2026 specifically
+        foreach ($ver in @("18", "17")) {
+            $path = & $vswhere -version "[$ver.0,$([int]$ver+1).0)" -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\*.exe" 2>$null
+            if ($path) {
+                $exe = $path | Where-Object { $_ -like "*MSBuild.exe" } | Select-Object -First 1
+                if ($exe) { return $exe }
+            }
+        }
+        # Fallback: any version
         $path = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\*.exe" 2>$null
         if ($path) {
             $exe = $path | Where-Object { $_ -like "*MSBuild.exe" } | Select-Object -First 1
             if ($exe) { return $exe }
         }
     }
-    # Fallback: common VS install locations
+    # Fallback: common VS install locations (prefer higher version number)
     $fallbacks = @(
         "${env:ProgramFiles(x86)}\Microsoft Visual Studio\*\*\MSBuild\*\Bin\amd64\MSBuild.exe"
         "${env:ProgramFiles(x86)}\Microsoft Visual Studio\*\MSBuild\*\Bin\amd64\MSBuild.exe"
@@ -52,7 +62,7 @@ function Find-MSBuild {
         "${env:ProgramFiles}\Microsoft Visual Studio\*\MSBuild\*\Bin\amd64\MSBuild.exe"
     )
     foreach ($pattern in $fallbacks) {
-        $found = Get-ChildItem $pattern -ErrorAction 0 | Sort-Object FullName -Descending | Select-Object -First 1
+        $found = Get-ChildItem $pattern -ErrorAction 0 | Sort-Object { [int]($_.FullName -replace '.*Visual Studio\\(\d+)\\.*','$1') } -Descending | Select-Object -First 1
         if ($found) { return $found.FullName }
     }
     # Fallback: check PATH
@@ -116,21 +126,21 @@ function Step-VsWdk {
         Log "  MSBuild not found. Installing VS 2026 Build Tools..."
     }
     if ($needVsInstall) {
-        $bootstrapper = "$env:TEMP\vs_BuildTools.exe"
+        $bootstrapper = "$env:TEMP\vs_BuildTools_18.exe"
+        Remove-Item "$env:TEMP\vs_BuildTools.exe" -EA 0
 
-        if (-not (Test-Path $bootstrapper)) {
-            Log "  Downloading VS Build Tools bootstrapper (~2 MB)..."
-            try {
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/18/release/vs_BuildTools.exe", $bootstrapper)
-            } catch {
-                Fail "Failed to download VS Build Tools. Check your internet connection."
-            }
+        Log "  Downloading VS 2026 Build Tools bootstrapper (~2 MB)..."
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/18/release/vs_BuildTools.exe", $bootstrapper)
+        } catch {
+            Fail "Failed to download VS Build Tools. Check your internet connection."
         }
 
+        $vsPath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools"
         Log "  Installing VS 2026 Build Tools (C++ workload, this may take 5-15 min)..."
         Log "  Progress: running installer silently..."
-        $proc = Start-Process -FilePath $bootstrapper -Wait -PassThru -ArgumentList "--quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
+        $proc = Start-Process -FilePath $bootstrapper -Wait -PassThru -ArgumentList "--quiet --wait --norestart --nocache --installPath `"$vsPath`" --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
         if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
             Fail "VS Build Tools installation failed (exit code $($proc.ExitCode)). Try manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026"
         }
