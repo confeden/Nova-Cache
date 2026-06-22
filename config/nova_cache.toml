@@ -13,9 +13,9 @@ flush_dirty_threshold = 128
 max_dirty_blocks = 4096
 
 [cache.l2]
-enable = true
-path = 'I:\l2_cache.dat'
-size_gb = 110
+enable = false
+path = ''
+size_gb = 0
 backends = []
 cache_sequential = true
 
@@ -44,5 +44,3 @@ fallback_providers = [
 ]
 
 [[volumes]]
-volume = "D"
-enabled = true

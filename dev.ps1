@@ -21,7 +21,7 @@ function Set-State($name, $val) {
     catch { Write-Host "  WARNING: state save failed for $name" }
 }
 
-# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# --- Helpers -------------------------------------------------------
 function Log($msg) { Write-Host ">>> $msg" -ForegroundColor Cyan }
 function Ok($msg) { Write-Host "  OK  $msg" -ForegroundColor Green }
 function Skip($msg) { Write-Host "  --  $msg (skipped)" -ForegroundColor Yellow }
@@ -73,7 +73,7 @@ function Find-Signtool {
     $null
 }
 
-# â”€â”€â”€ Steps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# --- Steps ---------------------------------------------------------
 
 function Step-Rust {
     Log "Step 1/6: Rust toolchain"
@@ -81,15 +81,20 @@ function Step-Rust {
     if ($have -and (Get-State "rust")) { Skip "Rust already installed"; return }
 
     if (-not $have) {
-        Log "  Downloading rustup-init.exe..."
-        $url = "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
-        $dst = "$env:TEMP\rustup-init.exe"
-        Invoke-WebRequest -Uri $url -OutFile $dst -UseBasicParsing
-        Log "  Installing Rust (defaults)..."
-        Start-Process $dst -Wait -ArgumentList "-y --default-host x86_64-pc-windows-msvc --default-toolchain stable"
-        Remove-Item $dst -EA 0
+        $rustup = "$env:TEMP\rustup-init.exe"
+        if (-not (Test-Path $rustup)) {
+            Log "  Downloading rustup-init.exe..."
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                (New-Object System.Net.WebClient).DownloadFile("https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe", $rustup)
+            } catch { Fail "Failed to download rustup. Check your internet connection." }
+        }
+        Log "  Installing Rust toolchain (stable)..."
+        $proc = Start-Process -FilePath $rustup -Wait -PassThru -ArgumentList "-y --default-host x86_64-pc-windows-msvc --default-toolchain stable"
+        if ($proc.ExitCode -ne 0) { Fail "Rust installation failed (exit code $($proc.ExitCode)). Try: https://rustup.rs" }
+        Remove-Item $rustup -EA 0
         $env:Path = [Environment]::GetEnvironmentVariable("Path","User") + ";" + [Environment]::GetEnvironmentVariable("Path","Machine")
-        if (-not (Get-Command rustc -EA 0)) { Fail "Rust installation failed. Try manually: https://rustup.rs" }
+        if (-not (Get-Command rustc -EA 0)) { Fail "Rust installed but rustc not found. Try restarting the terminal." }
     }
     Ok "rustc $(& rustc --version 2>$null)"
     Set-State "rust" $true
@@ -98,38 +103,69 @@ function Step-Rust {
 function Step-VsWdk {
     Log "Step 2/6: Visual Studio Build Tools + WDK"
     $msbuild = Find-MSBuild
-    if ($msbuild) { Ok "MSBuild: $msbuild" }
-    else {
-        Log "  MSBuild not found. Attempting install via winget..."
-        $winget = Get-Command winget -EA 0
-        if ($winget) {
-            Log "  Installing VS 2022 Build Tools (C++ workload)..."
-            & winget install Microsoft.VisualStudio.2022.BuildTools --silent --accept-package-agreements 2>$null
-            if ($LASTEXITCODE -ne 0) {
-                Log "  winget failed, trying direct download..."
-                $url = "https://aka.ms/vs/17/release/vs_BuildTools.exe"
-                $dst = "$env:TEMP\vs_BuildTools.exe"
-                Invoke-WebRequest -Uri $url -OutFile $dst -UseBasicParsing
-                Start-Process $dst -Wait -ArgumentList "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
+    if ($msbuild) {
+        Ok "MSBuild: $msbuild"
+    } else {
+        Log "  MSBuild not found. Installing VS 2022 Build Tools..."
+        $bootstrapper = "$env:TEMP\vs_BuildTools.exe"
+
+        # Download bootstrapper if not cached
+        if (-not (Test-Path $bootstrapper)) {
+            Log "  Downloading VS Build Tools bootstrapper (~2 MB)..."
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/17/release/vs_BuildTools.exe", $bootstrapper)
+            } catch {
+                Fail "Failed to download VS Build Tools. Check your internet connection."
             }
-            $msbuild = Find-MSBuild
-            if (-not $msbuild) { Fail "VS Build Tools installed but MSBuild not found. Try manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" }
-        } else { Fail "MSBuild not found. Install VS 2022 Build Tools: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" }
+        }
+
+        Log "  Installing VS Build Tools (C++ workload, this may take 5-15 min)..."
+        Log "  Progress: running installer silently..."
+        $proc = Start-Process -FilePath $bootstrapper -Wait -PassThru -ArgumentList "--quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
+        if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+            Fail "VS Build Tools installation failed (exit code $($proc.ExitCode)). Try manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022"
+        }
+        Log "  Installer finished (exit code $($proc.ExitCode))."
+
+        # Refresh PATH and re-detect
+        $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
+        $msbuild = Find-MSBuild
+        if (-not $msbuild) { Fail "VS Build Tools installed but MSBuild not found. Try restarting the terminal." }
     }
     Set-State "msbuild" $msbuild
 
     $signtool = Find-Signtool
-    if ($signtool) { Ok "Signtool: $signtool" }
-    else {
-        Log "  WDK signtool not found. Attempting WDK download..."
-        $url = "https://go.microsoft.com/fwlink/?linkid=2273610"
-        $dst = "$env:TEMP\wdk.exe"
-        try {
-            Invoke-WebRequest -Uri $url -OutFile $dst -UseBasicParsing
-            Start-Process $dst -Wait -ArgumentList "/quiet /install"
-            $signtool = Find-Signtool
-        } catch { Log "  WDK download failed. Install manually: https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk" }
-        if (-not $signtool) { Log "  WARNING: signtool not found. Driver signing will be skipped." }
+    if ($signtool) {
+        Ok "Signtool: $signtool"
+    } else {
+        Log "  WDK signtool not found. Installing WDK..."
+        $wdkInstaller = "$env:TEMP\wdk_installer.exe"
+
+        if (-not (Test-Path $wdkInstaller)) {
+            Log "  Downloading WDK (~1.5 MB)..."
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                (New-Object System.Net.WebClient).DownloadFile("https://go.microsoft.com/fwlink/?linkid=2273610", $wdkInstaller)
+            } catch {
+                Log "  WARNING: WDK download failed. Driver signing will be skipped."
+                Set-State "signtool" $null
+                return
+            }
+        }
+
+        Log "  Installing WDK (this may take a few minutes)..."
+        $proc = Start-Process -FilePath $wdkInstaller -Wait -PassThru -ArgumentList "/quiet /install"
+        if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+            Log "  WARNING: WDK installation failed (exit code $($proc.ExitCode)). Driver signing will be skipped."
+            Set-State "signtool" $null
+            return
+        }
+        Log "  WDK installed (exit code $($proc.ExitCode))."
+
+        $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
+        $signtool = Find-Signtool
+        if (-not $signtool) { Log "  WARNING: WDK installed but signtool not found. Driver signing will be skipped." }
     }
     Set-State "signtool" $signtool
 }
@@ -152,7 +188,7 @@ function Step-BuildDriver {
 
 function Step-BuildRust {
     Log "Step 4/6: Build Rust binaries"
-    $bins = @("nova-cache-service.exe","nova-cache-gui.exe")
+    $bins = @("nova-cache-service.exe")
     $allUp = $true
     foreach ($bin in $bins) {
         $p = "$ROOT\target\release\$bin"
@@ -162,7 +198,7 @@ function Step-BuildRust {
 
     Log "  cargo build --release..."
     Push-Location $ROOT
-    cargo build --release --bin nova-cache-service --bin nova-cache-gui 2>&1 | ForEach-Object { Write-Host "    $_" }
+    cargo build --release --bin nova-cache-service 2>&1 | ForEach-Object { Write-Host "    $_" }
     if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "Rust build failed" }
     Pop-Location
     Ok "Rust binaries built"
@@ -228,7 +264,7 @@ function Step-Sign {
 }
 
 function Step-Run {
-    Log "Step 6/6: Start service + GUI"
+    Log "Step 6/6: Start service"
 
     # Clean up old instances
     sc stop Novacache 2>$null
@@ -240,7 +276,6 @@ function Step-Run {
     Log "  Starting nova-cache-service (console mode)..."
     $svcDir = "$ROOT\target\release"
     if (-not (Test-Path "$svcDir\nova-cache-service.exe")) {
-        # try debug
         $svcDir = "$ROOT\target\debug"
     }
     $ps = Start-Process -FilePath "$svcDir\nova-cache-service.exe" -ArgumentList "--console" -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\nova_svc.log" -RedirectStandardError "$env:TEMP\nova_svc_err.log"
@@ -258,14 +293,10 @@ function Step-Run {
     if ($timeout -eq 0) { Log "  WARNING: minifilter not detected. Check $env:TEMP\nova_svc_err.log" }
     else { Ok "Novacache minifilter registered" }
 
-    # Start GUI
-    Log "  Starting nova-cache-gui..."
-    Start-Process -FilePath "$svcDir\nova-cache-gui.exe" -ArgumentList "--no-launch" -WindowStyle Normal
-    Start-Sleep -Seconds 1
-    Ok "Nova Cache is running. GUI should appear shortly."
+    Ok "Nova Cache service is running."
 }
 
-# â”€â”€â”€ Entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# --- Entry ---------------------------------------------------------
 function Main {
     if (-not (Check-Admin)) { Fail "Must run as Administrator" }
 
