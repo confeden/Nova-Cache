@@ -2,9 +2,24 @@
 $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
 $STATE_FILE = Join-Path $ROOT ".dev_state.json"
 
-# â”€â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function Get-State($name) { $s = (Get-Content $STATE_FILE -Raw -EA 0 | ConvertFrom-Json -EA 0); if ($s) { $s.$name } else { $false } }
-function Set-State($name, $val) { $s = @{}; if (Test-Path $STATE_FILE) { $s = Get-Content $STATE_FILE -Raw | ConvertFrom-Json -EA 0; if (-not $s) { $s = @{} } }; $s.$name = $val; $s | ConvertTo-Json | Set-Content $STATE_FILE }
+# --- State --------------------------------------------------------
+function Read-State {
+    if (-not (Test-Path $STATE_FILE)) { return @{} }
+    try {
+        $raw = Get-Content $STATE_FILE -Raw -EA 0
+        if (-not $raw) { return @{} }
+        $obj = $raw | ConvertFrom-Json -EA 0
+        if (-not $obj -or $obj -isnot [PSCustomObject]) { return @{} }
+        $ht = @{}
+        $obj.PSObject.Properties | ForEach-Object { $ht[$_.Name] = $_.Value }
+        return $ht
+    } catch { return @{} }
+}
+function Get-State($name) { $s = Read-State; if ($s.ContainsKey($name)) { $s[$name] } else { $false } }
+function Set-State($name, $val) {
+    try { $s = Read-State; $s[$name] = $val; $s | ConvertTo-Json | Set-Content $STATE_FILE -EA 0 }
+    catch { Write-Host "  WARNING: state save failed for $name" }
+}
 
 # â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Log($msg) { Write-Host ">>> $msg" -ForegroundColor Cyan }
