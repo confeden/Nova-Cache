@@ -14,7 +14,7 @@ max_dirty_blocks = 4096
 
 [cache.l2]
 enable = false
-path = ''
+path = 'I:\l2_cache.dat'
 size_gb = 0
 backends = []
 cache_sequential = true
@@ -32,6 +32,9 @@ sequential_threshold_kb = 512
 prefetch_ahead_mb = 16
 fragment_aware = true
 worker_threads = 4
+prefetch_min_window_mb = 1
+prefetch_max_window_mb = 64
+max_block_metadata = 100000
 
 [kdu]
 provider_id = 21
@@ -42,3 +45,7 @@ fallback_providers = [
     17,
     22,
 ]
+
+[[volumes]]
+volume = "D"
+enabled = true

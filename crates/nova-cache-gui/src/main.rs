@@ -206,8 +206,8 @@ fn tutorial_highlight(ui: &mut egui::Ui, active: bool, ctx: &egui::Context, add_
     }
     let c = pulse_color(ctx, 2.5);
     egui::Frame::none()
-        .fill(egui::Color32::from_rgba_premultiplied(80, 60, 0, 20))
-        .stroke(egui::Stroke::new(2.0, c))
+        .fill(egui::Color32::TRANSPARENT)
+        .stroke(egui::Stroke::new(2.5, c))
         .inner_margin(egui::Margin::symmetric(4, 2))
         .show(ui, add_contents);
 }
@@ -1064,6 +1064,7 @@ impl eframe::App for NovaCacheApp {
             else { 3 };
 
         egui::SidePanel::left("config_panel").frame(egui::Frame::NONE.inner_margin(egui::Margin::symmetric(12, 8))).resizable(true).default_width(400.0).min_width(350.0).max_width(550.0).show(ctx, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
             ui.add_space(10.0);
             ui.heading(egui::RichText::new("Settings").color(egui::Color32::from_rgb(180, 185, 195)));
             ui.separator();
@@ -1325,6 +1326,7 @@ impl eframe::App for NovaCacheApp {
             ui.separator();
             ui.add_space(6.0);
             ui.label(format!("L1: {} MB | L2: {} GB | {} KB blocks", config.l1_size_mb, config.l2_size_gb, config.block_size_kb));
+            }); // close ScrollArea
         });
 
         egui::CentralPanel::default()
@@ -1870,7 +1872,7 @@ fn load_gui_state() -> (f32, f32, f32, f32) {
             return (x, y, w.max(400.0).min(3000.0), h.max(300.0).min(2000.0));
         }
     }
-    (100.0, 100.0, 1300.0, 750.0)
+    (100.0, 100.0, 1300.0, 860.0)
 }
 
 fn save_gui_state(x: f32, y: f32, width: f32, height: f32) {
