@@ -180,6 +180,11 @@ function Step-Sign {
     & $signtool verify /pa $sys 2>$null
     if ($LASTEXITCODE -eq 0 -and -not $Force) { Skip "already signed"; return }
 
+    # Stop service and unload driver to release file lock
+    sc stop Novacache 2>$null
+    Start-Sleep -Seconds 2
+    fltmc unload Novacache 2>$null
+
     # Create test cert (PowerShell only - no dialog, no signtool create)
     $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "NovaCacheTest" } | Select-Object -First 1
     if (-not $cert) {
