@@ -1,4 +1,4 @@
-# Nova Cache
+# Nova Cache v0.9
 
 > A kernel-level disk caching system for Windows that accelerates HDD read performance by caching hot data in RAM and SSD tiers.
 
@@ -41,16 +41,67 @@ That's it. The script will:
 1. Install the **Rust toolchain** if missing (via [rustup](https://rustup.rs))
 2. Detect or install **Visual Studio Build Tools** with C++ workload and **WDK** (for driver building)
 3. Build the **kernel driver** (`Novacache.sys`) via MSBuild
-4. Build the **Rust service and GUI** via `cargo`
+4. Build the **Rust service** via `cargo`
 5. Create a **self-signed test certificate** and sign the driver
-6. Start `nova-cache-service` and `nova-cache-gui`
+6. Start `nova-cache-service`
 
 All steps are **idempotent** — completed steps are skipped on subsequent runs.
 
-> ⚠ **For development/testing only.** The driver relies on test-signing or DSE bypass via [KDU](https://github.com/hfiref0x/KDU). Configure KDU path in `config/nova_cache.toml` under `[kdu]`.
-
 ```cmd
 dev.bat --force    # force rebuild all
+```
+
+## Configuration
+
+After the first run, edit `config/nova_cache.toml` to configure caching:
+
+### L1 Cache (RAM)
+
+L1 is enabled by default with **512 MB** of shared memory. Adjust in the config:
+
+```toml
+[cache]
+l1_size_mb = 512    # increase if you have more RAM available
+```
+
+### L2 Cache (SSD)
+
+L2 is **disabled by default**. To enable SSD caching:
+
+1. Edit `config/nova_cache.toml`:
+   ```toml
+   [cache.l2]
+   enable = true
+   path = 'X:\l2_cache.dat'    # path on an SSD (NOT your OS drive)
+   size_gb = 50                 # size in GB
+   ```
+2. Restart the service: `dev.bat`
+
+> **Tip:** Use a dedicated SSD or a separate partition for L2. Do not use your OS drive — it defeats the purpose of caching.
+
+### Cached Volumes
+
+By default, **no volumes are cached**. To enable caching for a drive:
+
+1. Edit `config/nova_cache.toml` and add a volume:
+   ```toml
+   [[volumes]]
+   volume = "D"        # drive letter (no colon)
+   enabled = true
+   ```
+2. Restart the service: `dev.bat`
+
+Or use the GUI dashboard to add/remove volumes interactively.
+
+### Game Mode
+
+Game mode boosts cache priority for game/application processes:
+
+```toml
+[game_mode]
+enabled = true
+priority_boost = 2.0    # multiply cache priority for detected games
+detect_games = true     # auto-detect game processes
 ```
 
 ## Repository Structure
@@ -70,6 +121,10 @@ driver/
 config/                     — Configuration files
 scripts/                    — Build and management scripts
 ```
+
+## License
+
+GNU General Public License v3.0 — see [LICENSE](LICENSE).
 
 ## Attribution
 
