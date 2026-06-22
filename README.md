@@ -27,25 +27,31 @@ The driver intercepts every `ReadFile`/`WriteFile` call at the kernel level, che
 - **Performance monitoring** — real-time stats via IPC including hit rate, latency, and boost multiplier
 - **Graphical monitor** — egui dashboard for metrics and configuration
 
-## Building
+## Quick Start
 
-### Requirements
+> **Windows 10+ x64** only. Requires Administrator privileges.
 
-- **Windows 10+ x64** with WDK (for the driver)
-- **Rust toolchain** (stable) — install via [rustup.rs](https://rustup.rs)
-- **Visual Studio** with "Desktop development with C++" workload (for WDK/msbuild)
+Open **Command Prompt as Administrator** and run:
 
-### Steps
-
-```powershell
-# Build all Rust crates
-cargo build --release
-
-# Build the kernel driver
-msbuild driver\novacache\Novacache.vcxproj /p:Configuration=Release /p:Platform=x64
+```cmd
+dev.bat
 ```
 
-The output driver binary will be at `driver\novacache\Release\Novacache.sys`.
+That's it. The script will:
+1. Install the **Rust toolchain** if missing (via [rustup](https://rustup.rs))
+2. Detect or install **Visual Studio Build Tools** with C++ workload and **WDK** (for driver building)
+3. Build the **kernel driver** (`Novacache.sys`) via MSBuild
+4. Build the **Rust service and GUI** via `cargo`
+5. Create a **self-signed test certificate** and sign the driver
+6. Start `nova-cache-service` and `nova-cache-gui`
+
+All steps are **idempotent** — completed steps are skipped on subsequent runs.
+
+> ⚠ **For development/testing only.** The driver relies on test-signing or DSE bypass via [KDU](https://github.com/hfiref0x/KDU). Configure KDU path in `config/nova_cache.toml` under `[kdu]`.
+
+```cmd
+dev.bat --force    # force rebuild all
+```
 
 ## Repository Structure
 
@@ -65,16 +71,9 @@ config/                     — Configuration files
 scripts/                    — Build and management scripts
 ```
 
-## Loading the Driver
+## License
 
-> ⚠ **Nova Cache is designed for development/testing environments.** The driver is not digitally signed for public release and requires disabling Driver Signature Enforcement (DSE) or using a kernel driver utility.
-
-1. Build the driver and service as described above.
-2. Disable DSE temporarily (requires admin):
-   ```powershell
-   .\scripts\load_driver.ps1
-   ```
-3. The service auto-loads: `nova-cache-service.exe`
+GNU General Public License v3.0 — see [LICENSE](LICENSE).
 
 ## Attribution
 
