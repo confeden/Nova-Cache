@@ -358,6 +358,22 @@ impl IpcServer {
                 }
 
                 if l2_changed {
+                    let mut enable_set = false;
+                    {
+                        let mut conf = state.config.write();
+                        if conf.cache.l2.size_gb > 0 && !conf.cache.l2.path.as_os_str().is_empty() {
+                            conf.cache.l2.enable = true;
+                            enable_set = true;
+                        }
+                        let config_path = std::env::current_dir()
+                            .map(|d| d.join("config").join("nova_cache.toml"))
+                            .unwrap_or_default();
+                        if config_path.exists() {
+                            if let Err(e) = conf.save(&config_path) {
+                                error!("Failed to save config: {:?}", e);
+                            }
+                        }
+                    }
                     let l2_gb = state.config.read().cache.l2.size_gb;
                     let paths: Vec<std::path::PathBuf> = {
                         let conf = state.config.read();
@@ -426,8 +442,10 @@ impl IpcServer {
                 {
                     let mut conf = state.config.write();
                     if let Some(first) = new_paths.first() {
+                        conf.cache.l2.enable = true;
                         conf.cache.l2.path = first.clone();
                     } else {
+                        conf.cache.l2.enable = false;
                         conf.cache.l2.path = std::path::PathBuf::new();
                     }
                     conf.cache.l2.backends = if new_paths.len() > 1 {
