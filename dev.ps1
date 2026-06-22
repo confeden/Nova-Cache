@@ -103,37 +103,61 @@ function Step-Rust {
 function Step-VsWdk {
     Log "Step 2/6: Visual Studio Build Tools + WDK"
     $msbuild = Find-MSBuild
+    $needVsInstall = $true
     if ($msbuild) {
-        Ok "MSBuild: $msbuild"
+        $ver = [Version]((& $msbuild /version 2>$null) -replace '^.*(\d+\.\d+\.\d+).*$','$1' 2>$null)
+        if ($ver -and $ver.Major -ge 18) {
+            Ok "MSBuild: $msbuild (VS 2026, v$ver)"
+            $needVsInstall = $false
+        } else {
+            Log "  MSBuild found but too old (v$ver). Installing VS 2026..."
+        }
     } else {
-            Log "  MSBuild not found. Installing VS 2026 Build Tools..."
-            $bootstrapper = "$env:TEMP\vs_BuildTools.exe"
+        Log "  MSBuild not found. Installing VS 2026 Build Tools..."
+    }
+    if ($needVsInstall) {
+        $bootstrapper = "$env:TEMP\vs_BuildTools.exe"
 
-            # Download bootstrapper if not cached
-            if (-not (Test-Path $bootstrapper)) {
-                Log "  Downloading VS Build Tools bootstrapper (~2 MB)..."
-                try {
-                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                    (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/18/release/vs_BuildTools.exe", $bootstrapper)
-                } catch {
-                    Fail "Failed to download VS Build Tools. Check your internet connection."
-                }
+        if (-not (Test-Path $bootstrapper)) {
+            Log "  Downloading VS Build Tools bootstrapper (~2 MB)..."
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                (New-Object System.Net.WebClient).DownloadFile("https://aka.ms/vs/18/release/vs_BuildTools.exe", $bootstrapper)
+            } catch {
+                Fail "Failed to download VS Build Tools. Check your internet connection."
             }
+        }
 
-            Log "  Installing VS 2026 Build Tools (C++ workload, this may take 5-15 min)..."
-            Log "  Progress: running installer silently..."
-            $proc = Start-Process -FilePath $bootstrapper -Wait -PassThru -ArgumentList "--quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
-            if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
-                Fail "VS Build Tools installation failed (exit code $($proc.ExitCode)). Try manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026"
-            }
+        Log "  Installing VS 2026 Build Tools (C++ workload, this may take 5-15 min)..."
+        Log "  Progress: running installer silently..."
+        $proc = Start-Process -FilePath $bootstrapper -Wait -PassThru -ArgumentList "--quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --includeRecommended"
+        if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+            Fail "VS Build Tools installation failed (exit code $($proc.ExitCode)). Try manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026"
+        }
         Log "  Installer finished (exit code $($proc.ExitCode))."
 
-        # Refresh PATH and re-detect
         $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
         $msbuild = Find-MSBuild
         if (-not $msbuild) { Fail "VS Build Tools installed but MSBuild not found. Try restarting the terminal." }
     }
     Set-State "msbuild" $msbuild
+
+    # Install Windows SDK 10.0.28000.0 if missing
+    if (-not (Test-Path "C:\Program Files (x86)\Windows Kits\10\Include\10.0.28000.0\ucrt")) {
+        Log "  Windows SDK 10.0.28000.0 not found. Installing..."
+        $sdkInstaller = "$env:TEMP\winsdksetup.exe"
+        if (-not (Test-Path $sdkInstaller)) {
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                (New-Object System.Net.WebClient).DownloadFile("https://go.microsoft.com/fwlink/?linkid=2366211", $sdkInstaller)
+            } catch { Log "  WARNING: SDK download failed." }
+        }
+        if (Test-Path $sdkInstaller) {
+            $proc = Start-Process -FilePath $sdkInstaller -Wait -PassThru -ArgumentList "/features + /quiet /norestart"
+            if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) { Log "  WARNING: SDK install failed (exit code $($proc.ExitCode))." }
+            else { Log "  SDK installer finished (exit code $($proc.ExitCode))." }
+        }
+    }
 
     $signtool = Find-Signtool
     if ($signtool) {
