@@ -1,0 +1,57 @@
+Nova Cache — Custom License with GPLv3 Base
+
+Copyright (C) 2025 confeden
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version, SUBJECT TO the additional
+restrictions below.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+---
+
+ADDITIONAL RESTRICTIONS
+
+1. NO COMMERCIAL USE
+   You may not sell, license for a fee, charge for access, require
+   a paid subscription, or otherwise monetize this software or any
+   derivative work based on it, in whole or in part. Any distribution
+   of the software or its derivatives must be free of charge and
+   without any monetary consideration. This restriction does not
+   apply to reasonable compensation for physical distribution
+   (e.g., cost of media shipping).
+
+2. NO AI / MACHINE LEARNING USE
+   You may not use this software, its source code, its compiled
+   binaries, or any portion thereof for any purpose related to
+   artificial intelligence, machine learning, neural networks,
+   large language models, or similar technologies. This includes,
+   but is not limited to:
+   a) Training, fine-tuning, or otherwise feeding the code or its
+      output into any AI/ML model;
+   b) Using the code as training data, evaluation data, or
+      reference material for any AI/ML system;
+   c) Reading, parsing, or processing the source code with any
+      automated system that incorporates AI/ML techniques;
+   d) Generating, synthesizing, or producing any derived code,
+      documentation, or other works using AI/ML tools that have
+      been exposed to this code.
+
+3. NO AI CODE GENERATION
+   You may not use any AI code assistant, code completion tool,
+   large language model, or similar system to generate, suggest,
+   or modify code based on or derived from this software.
+
+These additional restrictions take precedence over any conflicting
+provisions in the GNU General Public License. If any provision of
+these additional restrictions is held to be invalid or unenforceable
+under applicable law, the GNU General Public License version 3
+shall apply without said provision.
