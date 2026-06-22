@@ -1029,7 +1029,7 @@ impl eframe::App for NovaCacheApp {
 
         ctx.request_repaint_after(Duration::from_millis(200));
 
-        egui::SidePanel::left("config_panel").frame(egui::Frame::NONE.inner_margin(egui::Margin::symmetric(12, 8))).resizable(true).default_width(350.0).min_width(300.0).max_width(500.0).show(ctx, |ui| {
+        egui::SidePanel::left("config_panel").frame(egui::Frame::NONE.inner_margin(egui::Margin::symmetric(12, 8))).resizable(true).default_width(400.0).min_width(350.0).max_width(550.0).show(ctx, |ui| {
             ui.add_space(10.0);
             ui.heading(egui::RichText::new("Settings").color(egui::Color32::from_rgb(180, 185, 195)));
             ui.separator();
@@ -1832,7 +1832,7 @@ fn load_gui_state() -> (f32, f32, f32, f32) {
             return (x, y, w.max(400.0).min(3000.0), h.max(300.0).min(2000.0));
         }
     }
-    (100.0, 100.0, 1100.0, 650.0)
+    (100.0, 100.0, 1250.0, 700.0)
 }
 
 fn save_gui_state(x: f32, y: f32, width: f32, height: f32) {
@@ -1927,7 +1927,7 @@ fn main() -> Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_title("Nova Cache Dashboard")
             .with_inner_size([win_w, win_h])
-            .with_min_inner_size([800.0, 400.0])
+            .with_min_inner_size([900.0, 500.0])
             .with_resizable(true)
             .with_position([pos_x, pos_y]),
         ..Default::default()

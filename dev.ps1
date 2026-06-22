@@ -293,9 +293,21 @@ function Step-Run {
     if ($timeout -eq 0) { Log "  WARNING: minifilter not detected (service may still be starting)" }
     else { Ok "Novacache minifilter registered" }
 
-    # Launch GUI and wait for it to close
+    # Wait for IPC pipe to be ready
+    Log "  Waiting for IPC pipe..."
+    $pipePath = "\\.\pipe\NovaCacheIpc"
+    $timeout = 15
+    while ($timeout -gt 0) {
+        if (Test-Path $pipePath) { break }
+        Start-Sleep -Seconds 1
+        $timeout--
+    }
+    if ($timeout -eq 0) { Log "  WARNING: IPC pipe not found. GUI may not connect." }
+    else { Ok "IPC pipe ready" }
+
+    # Launch GUI (hidden console) and wait for it to close
     Log "  Starting nova-cache-gui..."
-    $gui = Start-Process -FilePath "$svcDir\nova-cache-gui.exe" -ArgumentList "--no-launch" -PassThru
+    $gui = Start-Process -FilePath "$svcDir\nova-cache-gui.exe" -ArgumentList "--no-launch" -WindowStyle Hidden -PassThru
     $gui.WaitForExit()
 
     # GUI closed - stop service
