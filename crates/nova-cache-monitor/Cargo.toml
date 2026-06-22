@@ -1,6 +1,6 @@
 [package]
 name = "nova-cache-monitor"
-version = "0.92.0"
+version = "0.93.0"
 edition = "2021"
 description = "System I/O monitoring — ETW tracing, access heatmaps, sequential prefetch detection"
 license = "MIT"
