@@ -217,9 +217,9 @@ function Step-Sign {
     if ($sig.Status -eq "Valid" -and -not $Force) { Skip "already signed"; return }
 
     # Stop service and unload driver to release file lock
-    sc stop Novacache 2>$null
+    sc stop Novacache 2>&1 | Out-Null
     Start-Sleep -Seconds 2
-    fltmc unload Novacache 2>$null
+    fltmc unload Novacache 2>&1 | Out-Null
 
     # Create test cert (PowerShell only - no dialog, no signtool create)
     $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -match "NovaCacheTest" } | Select-Object -First 1
@@ -267,11 +267,11 @@ function Step-Run {
     Log "Step 6/6: Start service"
 
     # Clean up old instances
-    sc stop Novacache 2>$null
+    sc stop Novacache 2>&1 | Out-Null
     Start-Sleep -Seconds 2
-    fltmc unload Novacache 2>$null
-    taskkill /F /IM nova-cache-gui.exe 2>$null
-    taskkill /F /IM nova-cache-service.exe 2>$null
+    fltmc unload Novacache 2>&1 | Out-Null
+    taskkill /F /IM nova-cache-gui.exe 2>&1 | Out-Null
+    taskkill /F /IM nova-cache-service.exe 2>&1 | Out-Null
 
     # Start service in console mode
     Log "  Starting nova-cache-service (console mode)..."
@@ -293,16 +293,20 @@ function Step-Run {
     if ($timeout -eq 0) { Log "  WARNING: minifilter not detected (service may still be starting)" }
     else { Ok "Novacache minifilter registered" }
 
-    # Wait for IPC pipe to be ready
+    # Wait for IPC pipe to be ready (try connecting to named pipe)
     Log "  Waiting for IPC pipe..."
-    $pipePath = "\\.\pipe\NovaCacheIpc"
     $timeout = 15
+    $pipeFound = $false
     while ($timeout -gt 0) {
-        if (Test-Path $pipePath) { break }
-        Start-Sleep -Seconds 1
-        $timeout--
+        try {
+            $pipe = New-Object System.IO.Pipes.NamedPipeClientStream(".", "NovaCacheIpc", [System.IO.Pipes.PipeDirection]::InOut)
+            $pipe.Connect(1000)
+            $pipe.Dispose()
+            $pipeFound = $true
+            break
+        } catch { Start-Sleep -Seconds 1; $timeout-- }
     }
-    if ($timeout -eq 0) { Log "  WARNING: IPC pipe not found. GUI may not connect." }
+    if (-not $pipeFound) { Log "  WARNING: IPC pipe not found. Check $env:TEMP\nova_svc_err.log" }
     else { Ok "IPC pipe ready" }
 
     # Launch GUI (hidden console) and wait for it to close

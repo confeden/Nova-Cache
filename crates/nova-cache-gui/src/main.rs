@@ -189,6 +189,29 @@ fn format_gb(gb: f64) -> String {
     }
 }
 
+fn pulse_color(ctx: &egui::Context, speed: f64) -> egui::Color32 {
+    let t = (ctx.input(|i| i.time) * speed).sin() as f32;
+    let a = t * 0.5 + 0.5;
+    egui::Color32::from_rgb(
+        (255.0 * (a * 0.7 + 0.3)) as u8,
+        (200.0 * (a * 0.5 + 0.5)) as u8,
+        (50.0 * (a * 0.3 + 0.2)) as u8,
+    )
+}
+
+fn tutorial_highlight(ui: &mut egui::Ui, active: bool, ctx: &egui::Context, add_contents: impl FnOnce(&mut egui::Ui)) {
+    if !active {
+        add_contents(ui);
+        return;
+    }
+    let c = pulse_color(ctx, 2.5);
+    egui::Frame::none()
+        .fill(egui::Color32::from_rgba_premultiplied(80, 60, 0, 20))
+        .stroke(egui::Stroke::new(2.0, c))
+        .inner_margin(egui::Margin::symmetric(4, 2))
+        .show(ui, add_contents);
+}
+
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum IpcRequest {
@@ -316,6 +339,7 @@ pub struct NovaCacheApp {
     test_mode: TestMode,
     corrupted_drives: Vec<char>,
     needs_reboot: bool,
+    tutorial_step: usize,
 }
 
 #[derive(PartialEq)]
@@ -390,6 +414,7 @@ impl NovaCacheApp {
             test_mode: TestMode::None,
             corrupted_drives: Vec::new(),
             needs_reboot: false,
+            tutorial_step: 0,
         }
     }
 }
@@ -1029,6 +1054,15 @@ impl eframe::App for NovaCacheApp {
 
         ctx.request_repaint_after(Duration::from_millis(200));
 
+        // Tutorial step: guide user when nothing configured
+        let connected = connected;
+        let no_l2 = config.l2_backends.is_empty() || config.l2_size_gb == 0;
+        let no_vols = volumes.is_empty();
+        let step = if !connected { 0 }
+            else if no_vols { 1 }
+            else if no_l2 { 2 }
+            else { 3 };
+
         egui::SidePanel::left("config_panel").frame(egui::Frame::NONE.inner_margin(egui::Margin::symmetric(12, 8))).resizable(true).default_width(400.0).min_width(350.0).max_width(550.0).show(ctx, |ui| {
             ui.add_space(10.0);
             ui.heading(egui::RichText::new("Settings").color(egui::Color32::from_rgb(180, 185, 195)));
@@ -1049,6 +1083,7 @@ impl eframe::App for NovaCacheApp {
 
             ui.add_space(8.0);
 
+            tutorial_highlight(ui, step == 2, ctx, |ui| {
             ui.group(|ui| {
                 ui.label(egui::RichText::new("L2 Cache (SSD)").strong().size(14.0).color(egui::Color32::from_rgb(180, 185, 195)));
                 ui.add_space(4.0);
@@ -1127,6 +1162,7 @@ impl eframe::App for NovaCacheApp {
                     }
                 }
             });
+            }); // close tutorial_highlight (L2)
 
             ui.add_space(8.0);
 
@@ -1162,6 +1198,7 @@ impl eframe::App for NovaCacheApp {
             }
 
             ui.add_space(8.0);
+            tutorial_highlight(ui, step == 1, ctx, |ui| {
             ui.group(|ui| {
                 ui.label(egui::RichText::new("Add Volume").strong().size(14.0).color(egui::Color32::from_rgb(180, 185, 195)));
                 ui.add_space(4.0);
@@ -1195,6 +1232,7 @@ impl eframe::App for NovaCacheApp {
                     }
                 }
             });
+            }); // close tutorial_highlight (Add Volume)
 
             ui.add_space(8.0);
             ui.separator();
@@ -1832,7 +1870,7 @@ fn load_gui_state() -> (f32, f32, f32, f32) {
             return (x, y, w.max(400.0).min(3000.0), h.max(300.0).min(2000.0));
         }
     }
-    (100.0, 100.0, 1250.0, 700.0)
+    (100.0, 100.0, 1300.0, 750.0)
 }
 
 fn save_gui_state(x: f32, y: f32, width: f32, height: f32) {
