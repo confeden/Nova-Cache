@@ -1,0 +1,46 @@
+[workspace]
+members = [
+    "crates/nova-cache-core",
+    "crates/nova-cache-driver-comm",
+    "crates/nova-cache-kdu",
+    "crates/nova-cache-monitor",
+    "crates/nova-cache-service",
+    "crates/nova-cache-gui",
+    "crates/nova-bench",
+    "crates/nova-stress",
+    "memtest",
+]
+resolver = "2"
+
+[workspace.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_Storage_InstallableFileSystems",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+    "Win32_System_Services",
+    "Win32_System_Pipes",
+    "Win32_System_Diagnostics_Etw",
+    "Win32_Security",
+    "Win32_System_Ioctl",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemInformation",
+    "Win32_System_Memory",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Registry",
+] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+parking_lot = "0.12"
+dashmap = "6"
+crossbeam = "0.8"
+bytemuck = { version = "1", features = ["derive"] }
+memmap2 = "0.9"
+anyhow = "1"
+thiserror = "2"
+rand = "0.9"

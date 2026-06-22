@@ -1,0 +1,22 @@
+[package]
+name = "nova-cache-gui"
+version = "0.1.0"
+edition = "2021"
+description = "Nova Cache GUI — egui dashboard for cache stats, heatmaps, and configuration"
+license = "MIT"
+
+[[bin]]
+name = "nova-cache-gui"
+path = "src/main.rs"
+
+[dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+eframe = "0.31"
+egui = "0.31"
+nova-cache-core = { path = "../nova-cache-core" }
+windows = { workspace = true, features = ["Win32_UI_Shell", "Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_SystemServices", "Win32_System_Ioctl", "Win32_System_IO", "Win32_System_Threading"] }
+tray-icon = "0.24"

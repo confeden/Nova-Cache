@@ -1,0 +1,67 @@
+;=====================================================================
+; Novacache.inf – Installation INF for the NovaCache filter
+;=====================================================================
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = Filter
+ClassGuid   = {0D1EA0BF-4AA3-4C42-9E74-92B82F2F0380}
+Provider    = %ProviderName%
+DriverVer   = 06/05/2026,1.0.0.0
+DefaultUninstall.NTamd64 = DefaultUninstall
+
+[Manufacturer]
+%MfgName% = FilterDevice,NTx86,NTamd64
+
+[FilterDevice.NTx86]
+%NovacacheDeviceDesc% = Install.Novacache, Filter.Novacache
+
+[FilterDevice.NTamd64]
+%NovacacheDeviceDesc% = Install.Novacache, Filter.Novacache
+
+[Install.Novacache]
+CopyFiles = @Novacache.sys
+
+[Install.Novacache.Services]
+AddService = Novacache, %SPSVCINST_ASSOCSERVICE%, Novacache_Service_Inst
+
+[Novacache_Service_Inst]
+ServiceType    = SERVICE_KERNEL_DRIVER
+StartType      = SERVICE_DEMAND_START
+ErrorControl   = SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\Novacache.sys
+LoadOrderGroup = "FSFilter Activity Monitor"
+Dependencies   = FltMgr
+AddReg         = Novacache.AddReg
+
+[Novacache.AddReg]
+HKR,,"SupportedFeatures",0x00010001,0x3
+HKR,"Instances","DefaultInstance",0x00000000,"Novacache Instance"
+HKR,"Instances\Novacache Instance","Altitude",0x00000000,"180100"
+HKR,"Instances\Novacache Instance","Flags",0x00010001,0x0
+
+[DefaultUninstall.NTamd64]
+DelFiles   = @Novacache.sys
+DelReg     = Novacache.DelReg
+
+[DefaultUninstall.NTamd64.Services]
+DelService = Novacache,0x200
+
+[Novacache.DelReg]
+HKR,,
+
+[SourceDisksNames]
+1 = %DiskName%,,,
+
+[SourceDisksFiles]
+Novacache.sys = 1
+
+[DestinationDirs]
+DefaultDestDir = 12   ; %SystemRoot%\system32\drivers
+
+[Strings]
+ProviderName          = "NovaCache"
+MfgName               = "NovaCache"
+NovacacheDeviceDesc   = "NovaCache Mini-filter driver"
+DiskName              = "NovaCache Installation Disk"
+SPSVCINST_ASSOCSERVICE= 0x00000002 ; SERVICE_ERROR_NORMAL

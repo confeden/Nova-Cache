@@ -1,0 +1,13 @@
+[package]
+name = "nova-cache-kdu"
+version = "0.1.0"
+edition = "2021"
+description = "Kernel Driver Utility integration — DSE bypass, HVCI checks, driver loading via KDU providers"
+license = "MIT"
+
+[dependencies]
+windows = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }

@@ -1,0 +1,47 @@
+# Rust build artifacts
+/target/
+**/target/
+
+# Keep Cargo.lock for reproducible builds (workspace with binaries)
+
+# Old / archived files — user-managed cleanup
+/old/
+**/old/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# KDU tools — never commit drivers or loader binaries
+tools/kdu/*.sys
+tools/kdu/*.exe
+
+# Internal planning docs (not for public release)
+doc.md
+implementation_plan.md
+
+# Debug symbols
+*.pdb
+
+# Cache data files
+*.dat
+*.bin
+
+# Driver build output
+driver/novacache/Debug/
+driver/novacache/Release/
+driver/novacache/x64/
+driver/novacache/*.obj
+driver/novacache/*.sys
+driver/novacache/*.pdb
+driver/novacache/*.recipe
+driver/novacache/*.tlog/
+driver/novacache/*.log

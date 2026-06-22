@@ -1,0 +1,15 @@
+[package]
+name = "nova-bench"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+rand = { workspace = true }
+
+[dependencies.windows]
+workspace = true
+features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+]

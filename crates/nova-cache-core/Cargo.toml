@@ -1,0 +1,22 @@
+[package]
+name = "nova-cache-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core caching engine for Nova Cache — ARC algorithm, block management, memory pool, and SSD tier"
+license = "MIT"
+
+[dependencies]
+parking_lot = { workspace = true }
+dashmap = { workspace = true }
+crossbeam = { workspace = true }
+bytemuck = { workspace = true }
+memmap2 = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+windows = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }

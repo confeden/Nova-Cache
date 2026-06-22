@@ -1,0 +1,48 @@
+[general]
+log_level = "info"
+auto_start = true
+log_path = 'C:\ProgramData\NovaCache\nova_cache.log'
+
+[cache]
+l1_size_mb = 512
+block_size_kb = 64
+algorithm = "arc"
+flush_interval_ms = 500
+flush_interval_max_ms = 5000
+flush_dirty_threshold = 128
+max_dirty_blocks = 4096
+
+[cache.l2]
+enable = true
+path = 'I:\l2_cache.dat'
+size_gb = 110
+backends = []
+cache_sequential = true
+
+[game_mode]
+enabled = true
+priority_boost = 2.0
+detect_games = true
+custom_games = []
+game_directories = []
+
+[prefetch]
+enabled = true
+sequential_threshold_kb = 512
+prefetch_ahead_mb = 16
+fragment_aware = true
+worker_threads = 4
+
+[kdu]
+provider_id = 21
+kdu_path = 'E:\Programs\KDU\kdu.exe'
+auto_load_driver = true
+fallback_providers = [
+    16,
+    17,
+    22,
+]
+
+[[volumes]]
+volume = "D"
+enabled = true

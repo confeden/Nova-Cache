@@ -1,0 +1,14 @@
+[package]
+name = "nova-cache-driver-comm"
+version = "0.1.0"
+edition = "2021"
+description = "Kernel driver communication layer — filter port messages, IOCTL wrappers"
+license = "MIT"
+
+[dependencies]
+windows = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+bytemuck = { workspace = true }
+nova-cache-core = { path = "../nova-cache-core" }

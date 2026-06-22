@@ -1,0 +1,29 @@
+[package]
+name = "nova-cache-service"
+version = "0.1.0"
+edition = "2021"
+description = "Windows service binary — orchestrates cache engine, driver comm, KDU, and monitoring"
+license = "MIT"
+
+[[bin]]
+name = "nova-cache-service"
+path = "src/main.rs"
+
+[dependencies]
+windows = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+windows-service = "0.7"
+serde_json = { workspace = true }
+parking_lot = { workspace = true }
+nova-cache-core = { path = "../nova-cache-core" }
+nova-cache-driver-comm = { path = "../nova-cache-driver-comm" }
+nova-cache-kdu = { path = "../nova-cache-kdu" }
+nova-cache-monitor = { path = "../nova-cache-monitor" }
+bytemuck = { workspace = true }
+crossbeam = { workspace = true }
+dashmap = { workspace = true }
